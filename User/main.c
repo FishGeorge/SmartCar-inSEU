@@ -23,14 +23,12 @@ void PTB11_EXTI_ISR();
 void PIT_Speed_ISR();
 void dispcondition(int);
 void brake(int,int,int);
-//char* itoa (int n);
 
 // pid参数
-#define S_Kp 6.3     // 3.5 全90 5.9 0.2 0
-#define S_Ki 0.8    //  change
+#define S_Kp 0
 #define S_Kd 0
-#define M_Kp 2.5  // 3.5
-#define M_Ki 0.5
+#define M_Kp 0
+#define M_Ki 0
 #define M_Kd 0
 
 struct _pid{  
@@ -42,7 +40,7 @@ struct _pid{
   float Kp,Ki,Kd; // 定义比例、积分、微分系数  
 }pid_s,pid_m;
 
-// 标志位设置
+// 标志位
 int mark_loop=0;
 bool mark_motor=false;
 bool mark_uart=false;
@@ -50,10 +48,9 @@ bool mark_set=false;
 bool onStraightRoad=true;
 bool comingCurveRoad=false;
 bool comingTerminal=false;
-bool changePlan=false;
 
 //灰度值
-int WB=175;
+int WB=165;
 
 // Dir_err判断范围
 int imageUB=15;
@@ -62,20 +59,20 @@ int imageLB=40;
 // 车况参数
 int StraightSpeed=120;
 int CurveSpeed=95;
-int MotorFrequency=0;//=cMotorPower 1/10000
+int MotorFrequency=1000;
+int initFrequencyLevel=1000;
 int MAXFrequency=2500;
 int cPulse=0;
 int cSpeed=0;//cm/s
-//int cMotorPower=0;//1/10000
 int cPreDirErr=0;
 int cDirErr=0;
 
 // pit采样脉冲周期 us
 int pitTime=20000;
 // 直道判定Dir偏差限
-int StraightV=10;
+int StraightR=10;
 // 弯道前瞻限
-int PreCurve=8;
+int PreCurveR=8;
 // 发送周期限制
 int uart_n=0;
 int uart_count=20;
@@ -87,7 +84,7 @@ int main(){
   // OLED初始化
   OLED_Init();
   OLED_Clear();
-  // UART初始化，非调试时注释（3.3改用拨码开关）
+  // UART初始化
   UART_QuickInit(UART3_RX_PC16_TX_PC17,115200);
   // PWT定时器初始化
   DelayInit();
@@ -103,8 +100,6 @@ int main(){
   FTM_PWM_QuickInit(FTM0_CH5_PD05,kPWM_EdgeAligned,10000,0);
   FTM_PWM_QuickInit(FTM0_CH7_PD07,kPWM_EdgeAligned,10000,0);
   // 编码器初始化
-//  // lptmr脉冲计数器初始化
-//  LPTMR_PC_QuickInit(LPTMR_ALT2_PC05);
   // ftm脉冲计数器初始化
   FTM_QD_QuickInit(FTM1_QD_PHA_PB00_PHB_PB01, kFTM_QD_NormalPolarity,kQD_CountDirectionEncoding);
   // pit中断计时器初始化/ 单位us /100ms一个采样周期
@@ -134,10 +129,10 @@ int main(){
   // 舵机摆正
   // <725 turn left
   // >725 turn right
-  // Range: -
+  // Effective range: ~
   FTM_PWM_ChangeDuty(HW_FTM2,HW_FTM_CH0,710);
   //64车中值725
-  //185车中值改为710
+  //185车中值710
   
   // 初始化设置完毕，使能中断
   EnableInterrupts;
@@ -145,31 +140,26 @@ int main(){
   PEout(25)=1;
   
   while(1){
-    // 计算周期>50ms
-//   DelayMs(10);
-    
-    // 资格赛用参数方案变化
-    if(!changePlan&&PBin(21)){
-      StraightSpeed=100;
-      MAXFrequency=2000;
-      changePlan=true;
+    // 不同方案参数改变
+    // 开关1
+    if(PBin(21)){
+      
     }
-    if(!PBin(20)){
-      WB=165;pid_s.Kp=6.25;}
+    // 开关2
+    if(PBin(20)){
+      
+    }
     
-    // 开关1/寻线到Lx Rx，过程包括了调用摄像头获取图像
-    // 开关1损坏/另用
-//    if(PBin(21))searchline_OV7620(WB);
+    // 寻线到Lx Rx，过程包括了调用摄像头获取图像
     searchline_OV7620(WB);
-    // 开关2/调节舵机
-//    if(PBin(20))FTM_PWM_ChangeDuty(HW_FTM2,HW_FTM_CH0,725+(int)PID_Steer_computing(GetDir_err()));
-    FTM_PWM_ChangeDuty(HW_FTM2,HW_FTM_CH0,710+(int)PID_Steer_computing(GetDir_err()));
+    // 调节舵机
     //64车中值725
-    //185车中值改为710
+    //185车中值710
+    FTM_PWM_ChangeDuty(HW_FTM2,HW_FTM_CH0,710+(int)PID_Steer_computing(GetDir_err()));
     // 开关3/显示寻线结果示意图到OLED屏
     if(PBin(23)){if(!PBin(17))dispimage(mark_loop,cDirErr,cPreDirErr,cSpeed,MotorFrequency);else dispcondition(mark_loop);mark_loop++;}
     else OLED_Clear();
-    // 开关4/通过串口发送图像到上位机，非调试时注释（3.3改用拨码开关控制，LED8显示）
+    // 开关4/通过串口发送data到上位机 LED8显示发送状态
     if(PBin(22)){
       if(mark_uart){PCout(18)=1;Send_image();PCout(18)=0;}
       else{uart_n++;if(uart_n%uart_count==0){PCout(18)=1;Send_condition();PCout(18)=0;}}
@@ -180,10 +170,10 @@ int main(){
       else mark_uart=false;
     
     // 直弯道判断
-    if(cDirErr>=-StraightV&&cDirErr<=StraightV) onStraightRoad=true;
+    if(cDirErr>=-StraightR&&cDirErr<=StraightR) onStraightRoad=true;
     else onStraightRoad=false;
     // 前瞻弯道判断
-    if(onStraightRoad)comingCurveRoad=PreWarningCurveRoad(PreCurve);
+    if(onStraightRoad)comingCurveRoad=PreWarningCurveRoad(PreCurveR);
     // 终点判断
 //    if((Lx[10]-Rx[10])<30&&(Lx[15]-Rx[15])<30)comingTerminal=true;
     if((Lx[35]-Rx[35])<30&&(Lx[40]-Rx[40])<35)comingTerminal=true;
@@ -192,42 +182,28 @@ int main(){
     // 前瞻终点，关闭电机
     if(comingTerminal){
       mark_motor=false;
-      pid_m.SetSpeed=0;
+//      pid_m.SetSpeed=0;
     }
     // 在直道且前瞻直道
-    else if(onStraightRoad&&!comingCurveRoad)pid_m.SetSpeed=StraightSpeed;
-    // 在直道而前瞻弯道->空挡减速
-    else if(onStraightRoad&&comingCurveRoad){
-      pid_m.SetSpeed=CurveSpeed;
-      brake(1,150,5);
-//      brake(2,400,50);
-    }
+    else if(onStraightRoad&&!comingCurveRoad) pid_m.SetSpeed=StraightSpeed;
+    // 在直道而前瞻弯道
+    else if(onStraightRoad&&comingCurveRoad) pid_m.SetSpeed=CurveSpeed;
     // 在弯道
     else{
       pid_m.SetSpeed=CurveSpeed;
       onStraightRoad=false;
     }
     
-    if(MotorFrequency>MAXFrequency){
-      MotorFrequency=MAXFrequency;
-    }
-    // 电机功率控制（控制PWM波占空比，非控速）//3.5 pid控速
-    if(mark_motor){
+    // 电机功率控制 闭环控速
+    if(mark_motor)
       MotorFrequency+=(int)PID_Motor_computing(cSpeed);
-//      if(MotorFrequency>MAXFrequency){
-//        MotorFrequency=MAXFrequency;
-//      }
-    }
     else 
       MotorFrequency=0;
-    if(MotorFrequency>MAXFrequency){
-      MotorFrequency=MAXFrequency;
-//      MotorFrequency=MAXFrequency;
-//      MotorFrequency=MAXFrequency;
-    }
-    if(MotorFrequency<0)MotorFrequency=0;// 3.9添加
+    // 正极pwm最大最小占空比限制
+    if(MotorFrequency>MAXFrequency) MotorFrequency=MAXFrequency;
+    if(MotorFrequency<0) MotorFrequency=0;
     FTM_PWM_ChangeDuty(HW_FTM0,HW_FTM_CH5,MotorFrequency);
-    FTM_PWM_ChangeDuty(HW_FTM0,HW_FTM_CH7,0);
+    FTM_PWM_ChangeDuty(HW_FTM0,HW_FTM_CH7,initFrequencyLevel);
   }
 }
 
@@ -244,10 +220,8 @@ int GetDir_err(){
   // 15-40
 //  int imageUB=15;
 //  int imageLB=40;
-  //LB 宽的那一边
   for(int i=imageUB;i<=imageLB;i++){
     if(0<Cx[i]<152){
-      // 30边界  近端可信  远端不可信
       if(i<=30)
         err_sum+=1*(Cx[i]-76);
       else
@@ -255,7 +229,7 @@ int GetDir_err(){
     }else
       k++;
   }
-  if(k==(imageLB-imageUB+1)) err_out=0;//err_sum=0;
+  if(k==(imageLB-imageUB+1)) err_out=0;
   else err_out=err_sum/(imageLB-imageUB+1-k);
   cDirErr=err_out;
   return err_out;
@@ -267,18 +241,14 @@ bool PreWarningCurveRoad(int CurveLimit){
   int err_sum=0;
   int k=0;
   for(int i=0;i<=imageUB;i++){
-    if(0<Cx[i]<152){
-//      if(i<=30)
+    if(0<Cx[i]<152)
         err_sum+=1*(Cx[i]-76);
-//      else
-//        err_sum+=1.5*(Cx[i]-76);
-    }else
+    else
       k++;
   }
-  if(k==(imageUB-0+1)) err_out=0;//err_sum=0;
+  if(k==(imageUB-0+1)) err_out=0;
   else err_out=err_sum/(imageUB-0+1-k);
   cPreDirErr=err_out;
-//  return err_out;
   if(err_out>-CurveLimit&&err_out<CurveLimit)return false;
   else return true;
 }
@@ -306,29 +276,26 @@ void PID_init(){
   pid_m.Kd=M_Kd; 
 }  
 
-// 舵机pid增量算法计算
+// 舵机pid算法_pd增量式
 float PID_Steer_computing(float err){
   pid_s.err=err; 
   
   float increment
-    =pid_s.Kp*pid_s.err-pid_s.Ki*pid_s.err_l;
+    =pid_s.Kp*(pid_s.err-pid_s.err_l)+pid_s.Kd*(pid_s.err-2*pid_s.err_l+pid_s.err_ll);
   
   pid_s.err_ll=pid_s.err_l;
   pid_s.err_l=pid_s.err;
   
   return increment;
-  //?  有什么作用
 }
 
-// 电机pid增量算法计算
+// 电机pid算法_pid增量式
 float PID_Motor_computing(int speed){
   pid_m.ActualSpeed=speed;
   pid_m.err=pid_m.SetSpeed-pid_m.ActualSpeed; 
   
   float incrementFrequency
-    =pid_m.Kp*pid_m.err-pid_m.Ki*pid_m.err_l+pid_m.Kd*pid_m.err_ll;
-//  float incrementFrequency
-//    =pid_m.Kp*(pid_m.err-pid_m.err_l)+pid_m.Ki*pid_m.err+pid_m.Kd*(pid_m.err-2*pid_m.err_l+pid_m.err_ll);
+    =pid_m.Kp*(pid_m.err-pid_m.err_l)+pid_m.Ki*pid_m.err+pid_m.Kd*(pid_m.err-2*pid_m.err_l+pid_m.err_ll);
   
   pid_m.err_ll=pid_m.err_l;
   pid_m.err_l=pid_m.err;
@@ -362,15 +329,7 @@ void Send_condition(){
   num_arr1[1] = MotorFrequency / 100 % 10+48;
   num_arr1[2] = MotorFrequency / 10 % 10+48;
   num_arr1[3] = MotorFrequency % 10+48;
-  
   UART_printf(HW_UART3,"PWM= ");
-  UART_printf(HW_UART3,num_arr1);
-  
-  num_arr1[0] = cPulse / 1000+48;
-  num_arr1[1] = cPulse / 100 % 10+48;
-  num_arr1[2] = cPulse / 10 % 10+48;
-  num_arr1[3] = cPulse % 10+48;
-  UART_printf(HW_UART3,"   Pulse= ");
   UART_printf(HW_UART3,num_arr1);
   
   num_arr1[0] = '0';
@@ -386,28 +345,19 @@ void Send_condition(){
 // buttun1中断处理函数
 /*
 逻辑：
-1)开关4 off时，buttun1用于转换电机开关。
-2)开关4 on时，buttun1用于转换UART发送内容。
+buttun1用于转换电机开关
 */
 void PTB11_EXTI_ISR(){
-//  if(!PBin(22)){
     if(!mark_motor)mark_motor=true;
     else mark_motor=false;
-//  }else{
-//    if(!mark_uart)mark_uart=true;
-//    else mark_uart=false;
-//  }
 }
 
 // PIT定时中断处理函数 用于编码器脉冲计数
 void PIT_Speed_ISR(){
-//  cPulse=LPTMR_PC_ReadCounter();
-//  LPTMR_ClearCounter();
   int16_t val;
   uint8_t dir;
   FTM_QD_GetData(HW_FTM1, &val, &dir);
   cPulse=-(int)val;
-  //*0.13
   cSpeed=(int)((float)cPulse/(float)512*(float)40/(float)105*17.3*1000000/pitTime);
   FTM_QD_ClearCount(HW_FTM1);
 }
@@ -460,11 +410,8 @@ void brake(int tier,int duty,int time){
     FTM_PWM_ChangeDuty(HW_FTM0,HW_FTM_CH7,0);
     DelayMs(time);
   }else if(tier==1){
-//    FTM_PWM_ChangeDuty(HW_FTM0,HW_FTM_CH5,duty);
     FTM_PWM_ChangeDuty(HW_FTM0,HW_FTM_CH5,pid_m.Kp*duty);
     FTM_PWM_ChangeDuty(HW_FTM0,HW_FTM_CH7,0);
-//    FTM_PWM_ChangeDuty(HW_FTM0,HW_FTM_CH5,err1+err2);
-//    FTM_PWM_ChangeDuty(HW_FTM0,HW_FTM_CH7,err1-err2);
     DelayMs(time);
   }else if(tier==2){
     FTM_PWM_ChangeDuty(HW_FTM0,HW_FTM_CH5,0);

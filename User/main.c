@@ -25,11 +25,12 @@ void dispcondition(int);
 void brake(int,int,int);
 
 // pid参数
-#define S_Kp 0
-#define S_Kd 0
-#define M_Kp 0
-#define M_Ki 0
-#define M_Kd 0
+#define S_Kp 6.2
+#define S_Ki 0//不用Ki
+#define S_Kd 0.8
+#define M_Kp 1.2
+#define M_Ki 1
+#define M_Kd 0//不用Kd
 
 struct _pid{  
   float SetSpeed; // 定义设定值  
@@ -42,7 +43,7 @@ struct _pid{
 
 // 标志位
 int mark_loop=0;
-bool mark_motor=false;
+bool mark_motor=true;
 bool mark_uart=false;
 bool mark_set=false;
 bool onStraightRoad=true;
@@ -59,13 +60,17 @@ int imageLB=40;
 // 车况参数
 int StraightSpeed=120;
 int CurveSpeed=95;
-int MotorFrequency=1000;
-int initFrequencyLevel=1000;
-int MAXFrequency=2500;
+int MotorFrequency=0;
+int initFrequencyLevel=1500;
+int MAXFrequency=3000;
 int cPulse=0;
 int cSpeed=0;//cm/s
 int cPreDirErr=0;
 int cDirErr=0;
+int S_PWM=725;
+int S_center=725;
+  //64车中值725
+  //185车中值710
 
 // pit采样脉冲周期 us
 int pitTime=20000;
@@ -75,7 +80,7 @@ int StraightR=10;
 int PreCurveR=8;
 // 发送周期限制
 int uart_n=0;
-int uart_count=20;
+int uart_count=40;
 
 int main(){
   // 初始化之前先关掉所有中断
@@ -129,8 +134,8 @@ int main(){
   // 舵机摆正
   // <725 turn left
   // >725 turn right
-  // Effective range: ~
-  FTM_PWM_ChangeDuty(HW_FTM2,HW_FTM_CH0,710);
+  // Effective range: 600~850
+  FTM_PWM_ChangeDuty(HW_FTM2,HW_FTM_CH0,S_center);
   //64车中值725
   //185车中值710
   
@@ -155,7 +160,11 @@ int main(){
     // 调节舵机
     //64车中值725
     //185车中值710
-    FTM_PWM_ChangeDuty(HW_FTM2,HW_FTM_CH0,710+(int)PID_Steer_computing(GetDir_err()));
+//    S_PWM+=(int)PID_Steer_computing(GetDir_err());
+    S_PWM=S_center+(int)PID_Steer_computing(GetDir_err());
+//    if(S_PWM>S_center+130)S_PWM=S_center+130;
+//    if(S_PWM<S_center-130)S_PWM=S_center-130;
+    if(PBin(20))FTM_PWM_ChangeDuty(HW_FTM2,HW_FTM_CH0,S_PWM);
     // 开关3/显示寻线结果示意图到OLED屏
     if(PBin(23)){if(!PBin(17))dispimage(mark_loop,cDirErr,cPreDirErr,cSpeed,MotorFrequency);else dispcondition(mark_loop);mark_loop++;}
     else OLED_Clear();
@@ -201,8 +210,8 @@ int main(){
       MotorFrequency=0;
     // 正极pwm最大最小占空比限制
     if(MotorFrequency>MAXFrequency) MotorFrequency=MAXFrequency;
-    if(MotorFrequency<0) MotorFrequency=0;
-    FTM_PWM_ChangeDuty(HW_FTM0,HW_FTM_CH5,MotorFrequency);
+    if(MotorFrequency<-initFrequencyLevel) MotorFrequency=-initFrequencyLevel;
+    FTM_PWM_ChangeDuty(HW_FTM0,HW_FTM_CH5,MotorFrequency+initFrequencyLevel);
     FTM_PWM_ChangeDuty(HW_FTM0,HW_FTM_CH7,initFrequencyLevel);
   }
 }
@@ -231,8 +240,10 @@ int GetDir_err(){
   }
   if(k==(imageLB-imageUB+1)) err_out=0;
   else err_out=err_sum/(imageLB-imageUB+1-k);
+//  cDirErr=err_out+4;
   cDirErr=err_out;
-  return err_out;
+  // 图像处理有一点误差
+  return cDirErr;
 }
 
 //  弯道预警
@@ -276,12 +287,14 @@ void PID_init(){
   pid_m.Kd=M_Kd; 
 }  
 
-// 舵机pid算法_pd增量式
+// 舵机pid算法_pd增量式/自发明式
 float PID_Steer_computing(float err){
   pid_s.err=err; 
   
+//  float increment
+//    =pid_s.Kp*(pid_s.err-pid_s.err_l)+pid_s.Kd*(pid_s.err-2*pid_s.err_l+pid_s.err_ll);
   float increment
-    =pid_s.Kp*(pid_s.err-pid_s.err_l)+pid_s.Kd*(pid_s.err-2*pid_s.err_l+pid_s.err_ll);
+    =pid_s.Kp*pid_s.err-pid_s.Kd*pid_s.err_l;
   
   pid_s.err_ll=pid_s.err_l;
   pid_s.err_l=pid_s.err;
@@ -289,13 +302,13 @@ float PID_Steer_computing(float err){
   return increment;
 }
 
-// 电机pid算法_pid增量式
+// 电机pid算法_pi增量式
 float PID_Motor_computing(int speed){
   pid_m.ActualSpeed=speed;
   pid_m.err=pid_m.SetSpeed-pid_m.ActualSpeed; 
   
   float incrementFrequency
-    =pid_m.Kp*(pid_m.err-pid_m.err_l)+pid_m.Ki*pid_m.err+pid_m.Kd*(pid_m.err-2*pid_m.err_l+pid_m.err_ll);
+    =pid_m.Kp*(pid_m.err-pid_m.err_l)+pid_m.Ki*pid_m.err;
   
   pid_m.err_ll=pid_m.err_l;
   pid_m.err_l=pid_m.err;
@@ -325,18 +338,35 @@ void Send_image(){
 void Send_condition(){
 //  UART_WriteByte(HW_UART3,'t');
   char num_arr1[4];
+//  num_arr1[0] = S_PWM / 1000+48;
+//  num_arr1[1] = S_PWM / 100+48;
+//  num_arr1[2] = S_PWM / 10 % 10+48;
+//  num_arr1[3] = S_PWM % 10+48;
+//  UART_printf(HW_UART3,"S_PWM= ");
+//  UART_printf(HW_UART3,num_arr1);
+  
+  int Err=0;
+  if(cDirErr<0)Err=-cDirErr;
+  else Err=cDirErr;
+  num_arr1[0] = Err / 1000+48;
+  num_arr1[1] = Err / 100+48;
+  num_arr1[2] = Err / 10 % 10+48;
+  num_arr1[3] = Err % 10+48;
+  UART_printf(HW_UART3,"  Err= ");
+  UART_printf(HW_UART3,num_arr1);
+  
   num_arr1[0] = MotorFrequency / 1000+48;
   num_arr1[1] = MotorFrequency / 100 % 10+48;
   num_arr1[2] = MotorFrequency / 10 % 10+48;
   num_arr1[3] = MotorFrequency % 10+48;
-  UART_printf(HW_UART3,"PWM= ");
+  UART_printf(HW_UART3,"  PWM= ");
   UART_printf(HW_UART3,num_arr1);
   
   num_arr1[0] = '0';
   num_arr1[1] = cSpeed / 100+48;
   num_arr1[2] = cSpeed / 10 % 10+48;
   num_arr1[3] = cSpeed % 10+48;
-  UART_printf(HW_UART3,"   Speed= ");
+  UART_printf(HW_UART3,"  Speed= ");
   UART_printf(HW_UART3,num_arr1);
   
   UART_WriteByte(HW_UART3,'\n');

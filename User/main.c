@@ -161,13 +161,8 @@ int main(){
     DelayMs(6);
     
     // 不同方案参数改变
-    // 开关4
-    if(PBin(21)&&comingTerminal==false){
-      mark_motor=true;
-    }
-    else mark_motor=false;
-    // 开关3
-    if(PBin(20)){
+    // 开关1
+    if(PBin(22)){
       
     }
     
@@ -180,13 +175,13 @@ int main(){
 //    S_PWM=S_center+(int)PID_Steer_computing(GetDir_err());
     if(S_PWM>S_center+130)S_PWM=S_center+130;
     if(S_PWM<S_center-130)S_PWM=S_center-130;
-    // 开关3
-    if(PBin(20))FTM_PWM_ChangeDuty(HW_FTM2,HW_FTM_CH0,S_PWM);
-    // 开关2/显示寻线结果示意图到OLED屏
-    if(PBin(23)){if(!PBin(17))dispimage(mark_loop,cDirErr,cPreDirErr,cSpeed,MotorFrequency);else dispcondition(mark_loop);mark_loop++;}
+    // 开关2
+    if(PBin(23))FTM_PWM_ChangeDuty(HW_FTM2,HW_FTM_CH0,S_PWM);
+    // 开关3/显示寻线结果示意图到OLED屏
+    if(PBin(20)){if(!PBin(17))dispimage(mark_loop,cDirErr,cPreDirErr,cSpeed,MotorFrequency);else dispcondition(mark_loop);mark_loop++;}
     else OLED_Clear();
-    // 开关1/通过串口发送data到上位机 LED8显示发送状态
-    if(PBin(22)){
+    // 开关4/通过串口发送data到上位机 LED8显示发送状态
+    if(PBin(21)){
       if(mark_uart){PCout(18)=1;Send_image();PCout(18)=0;}
       else{uart_n++;if(uart_n%uart_count==0){PCout(18)=1;Send_condition();PCout(18)=0;}}
     }

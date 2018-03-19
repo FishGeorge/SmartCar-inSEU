@@ -20,7 +20,7 @@ Stop=1
 Freq=10000000
 MultiCoreRunAll=1
 [DebugChecksum]
-Checksum=985007871
+Checksum=-734970890
 [CodeCoverage]
 Enabled=_ 0
 [Exceptions]
@@ -52,6 +52,12 @@ ITMportsEnable=0
 ITMportsTermIO=0
 ITMportsLogFile=0
 ITMlogFile=$PROJ_DIR$\ITM.log
+[Trace1]
+Enabled=0
+ShowSource=1
+[Trace2]
+Enabled=0
+ShowSource=0
 [SWOTraceWindow]
 PcSampling=0
 InterruptLogs=0
@@ -90,6 +96,11 @@ GraphEnabled=0
 ShowTimeLog=1
 ShowTimeSum=1
 SumSortOrder=0
+[Disassemble mode]
+mode=0
+[Breakpoints2]
+Bp0=_ 0 "EMUL_CODE" "0x000026F0" 0 0 1 "" 0 "" 0
+Count=1
 [Log file]
 LoggingEnabled=_ 0
 LogFile=_ ""
@@ -97,6 +108,15 @@ Category=_ 0
 [TermIOLog]
 LoggingEnabled=_ 0
 LogFile=_ ""
+[Aliases]
+A0=_ "C:\Users\admin\Desktop\ver.S1 Pre\User\main.c" "C:\Users\admin\Desktop\ver.S1 Final\User\main.c"
+A1=_ "E:\坚果云同步\Test\User\init.c" "E:\坚果云同步\ver.中期验收\User\init.c"
+A2=_ "E:\坚果云同步\ver.S1 Pre\Libraries\Device\system_MK60D10.c" "E:\GitHub\SmartCar_inSEU\Libraries\Device\system_MK60D10.c"
+A3=_ "E:\坚果云同步\ver.S1Final\Libraries\Device\system_MK60D10.c" "E:\坚果云同步\ver.S1 Pre\Libraries\Device\system_MK60D10.c"
+A4=_ "E:\坚果云同步\ver.资格赛Final\Libraries\Device\system_MK60D10.c" "E:\坚果云同步\ver.S1Final\Libraries\Device\system_MK60D10.c"
+A5=_ "E:\坚果云同步\ver.资格赛\Libraries\Device\system_MK60D10.c" "E:\坚果云同步\ver.资格赛Final\Libraries\Device\system_MK60D10.c"
+Count=6
+SuppressDialog=1
 [CallStackLog]
 Enabled=0
 [PowerProbe]
@@ -109,17 +129,3 @@ Mode=1
 Graph=0
 Symbiont=0
 Exclusions=
-[Disassemble mode]
-mode=0
-[Breakpoints2]
-Bp0=_ 0 "EMUL_CODE" "0x000026F0" 0 0 1 "" 0 "" 0
-Count=1
-[Aliases]
-A0=_ "C:\Users\admin\Desktop\ver.S1 Pre\User\main.c" "C:\Users\admin\Desktop\ver.S1 Final\User\main.c"
-A1=_ "E:\坚果云同步\Test\User\init.c" "E:\坚果云同步\ver.中期验收\User\init.c"
-A2=_ "E:\坚果云同步\ver.S1 Pre\Libraries\Device\system_MK60D10.c" "E:\GitHub\SmartCar_inSEU\Libraries\Device\system_MK60D10.c"
-A3=_ "E:\坚果云同步\ver.S1Final\Libraries\Device\system_MK60D10.c" "E:\坚果云同步\ver.S1 Pre\Libraries\Device\system_MK60D10.c"
-A4=_ "E:\坚果云同步\ver.资格赛Final\Libraries\Device\system_MK60D10.c" "E:\坚果云同步\ver.S1Final\Libraries\Device\system_MK60D10.c"
-A5=_ "E:\坚果云同步\ver.资格赛\Libraries\Device\system_MK60D10.c" "E:\坚果云同步\ver.资格赛Final\Libraries\Device\system_MK60D10.c"
-Count=6
-SuppressDialog=1

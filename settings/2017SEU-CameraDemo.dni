@@ -20,7 +20,7 @@ Stop=1
 Freq=10000000
 MultiCoreRunAll=1
 [DebugChecksum]
-Checksum=-622219387
+Checksum=-1471923624
 [CodeCoverage]
 Enabled=_ 0
 [Exceptions]
@@ -117,8 +117,9 @@ Count=1
 [Aliases]
 A0=_ "C:\Users\admin\Desktop\ver.S1 Pre\User\main.c" "C:\Users\admin\Desktop\ver.S1 Final\User\main.c"
 A1=_ "E:\坚果云同步\Test\User\init.c" "E:\坚果云同步\ver.中期验收\User\init.c"
-A2=_ "E:\坚果云同步\ver.S1Final\Libraries\Device\system_MK60D10.c" "E:\坚果云同步\ver.S1 Pre\Libraries\Device\system_MK60D10.c"
-A3=_ "E:\坚果云同步\ver.资格赛Final\Libraries\Device\system_MK60D10.c" "E:\坚果云同步\ver.S1Final\Libraries\Device\system_MK60D10.c"
-A4=_ "E:\坚果云同步\ver.资格赛\Libraries\Device\system_MK60D10.c" "E:\坚果云同步\ver.资格赛Final\Libraries\Device\system_MK60D10.c"
-Count=5
+A2=_ "E:\坚果云同步\ver.S1 Pre\Libraries\Device\system_MK60D10.c" "E:\GitHub\SmartCar_inSEU\Libraries\Device\system_MK60D10.c"
+A3=_ "E:\坚果云同步\ver.S1Final\Libraries\Device\system_MK60D10.c" "E:\坚果云同步\ver.S1 Pre\Libraries\Device\system_MK60D10.c"
+A4=_ "E:\坚果云同步\ver.资格赛Final\Libraries\Device\system_MK60D10.c" "E:\坚果云同步\ver.S1Final\Libraries\Device\system_MK60D10.c"
+A5=_ "E:\坚果云同步\ver.资格赛\Libraries\Device\system_MK60D10.c" "E:\坚果云同步\ver.资格赛Final\Libraries\Device\system_MK60D10.c"
+Count=6
 SuppressDialog=1

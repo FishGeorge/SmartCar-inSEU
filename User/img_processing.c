@@ -11,7 +11,7 @@
 #include "oled.h"
 
 //char* out;
-int whiteRoad=150;
+int whiteRoad=0;
 /*
 * @name		searchline_OV7620
 * @description	To get the racing track from the imgadd.

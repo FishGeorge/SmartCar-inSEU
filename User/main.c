@@ -26,19 +26,21 @@ void brake(int,int,int);
 int AbsoluteValue(int);
 
 // pid参数
-float T=    0.01;     // 采样周期
+float T=    0.02;     // 采样周期
 // 舵机部分
-float Kp=   7.5;        // PID调节的比例常数
+float Kp=   7.2;        // PID调节的比例常数
 float Ti=   1;//不用// PID调节的积分常数
-float Td=   0.00;     // PID调节的微分时间常数
+float Td=   1.1;     // PID调节的微分时间常数
 //#define S_Kpp= Kp
 //#define S_Ki= Kp * T / Ti// 不用Ki
 //#define S_Kd= Kp * Td / T
+// 除骤变
+float EEmax=100;
 // 误差的阀值，小于这个数值的时候，不做PID调整，避免误差较小时频繁调节引起震荡
 float Emin= 0;
 // 电机部分
-float MKp=   0.3;        // PID调节的比例常数
-float MTi=   0.04;     // PID调节的积分常数
+float MKp=   3;        // PID调节的比例常数
+float MTi=   0.05;     // PID调节的积分常数
 float MTd=   1;//不用// PID调节的微分时间常数
 //#define M_Kp= MKp
 //#define M_Ki= MKp * T / MTi
@@ -57,7 +59,7 @@ struct _pid{
 int mark_loop=0;
 bool mark_motor=false;
 bool mark_uart=false;
-//bool mark_set=false;
+bool mark_afterset=false;
 bool onStraightRoad=true;
 bool comingCurveRoad=false;
 int comingTerminal=0;
@@ -68,22 +70,22 @@ int mark_set=1;
 //3-S_Kp，4-S_Kd
 //5-M_Kp，6-M_Ki
 //7-mark_setting_amount
-int mark_setting_amount=0;
-float setting_amount[4]={0.05,0.5,1,5.0};
+int mark_setting_amount=2;
+float setting_amount[5]={0.01,0.05,0.5,1,5.0};
 
 //灰度值
-int WB=190;
+int WB=175;
 
 // Dir_err判断范围
-int imageUB=15;
-int imageLB=40;
+int imageUB=0;
+int imageLB=45;
 
 // 车况参数
-int StraightSpeed=90;
-int CurveSpeed=90;
+int StraightSpeed=130;
+int CurveSpeed=110;
 int MotorFrequency=0;
 int initFrequencyLevel=1500;
-int MAXFrequency=3000;
+int MAXFrequency=3500;
 int cPulse=0;
 int cSpeed=0;//cm/s
 int cPreDirErr=0;
@@ -96,9 +98,9 @@ int S_center=725;
 // pit采样脉冲周期 us
 int pitTime=10000;
 // 直道判定Dir偏差限
-int StraightR=10;
+int StraightR=8;
 // 弯道前瞻限
-int PreCurveR=8;
+int PreCurveR=10;
 // 发送周期限制
 int uart_n=0;
 int uart_count=100;
@@ -166,8 +168,8 @@ int main(){
   PEout(25)=1;
   
   while(1){
-    // 凑10ms计算周期
-    DelayMs(6);
+    // 凑20ms计算周期
+    DelayMs(16);
     
     /*
     拨码开关及按键Key使用说明：
@@ -193,6 +195,8 @@ int main(){
     if(PBin(22)){
       // 调参模式关闭电机
       mark_motor=false;
+      // 
+      mark_afterset=true;
       // 调参模式下Key2控制逻辑
       // 开关4打开时
       if(PBin(21)){
@@ -208,18 +212,23 @@ int main(){
         if(PBin(17)&&mark_loop%20==0){
           if(mark_set==1) StraightSpeed-=setting_amount[mark_setting_amount];
           else if(mark_set==2) CurveSpeed-=setting_amount[mark_setting_amount];
-          else if(mark_set==3) pid_s.pidKp-=setting_amount[mark_setting_amount];
-          else if(mark_set==4) pid_s.pidKd-=setting_amount[mark_setting_amount];
-          else if(mark_set==5) pid_m.pidKp-=setting_amount[mark_setting_amount];
-          else if(mark_set==6) pid_m.pidKi-=setting_amount[mark_setting_amount];
+          else if(mark_set==3) Kp-=setting_amount[mark_setting_amount];
+          else if(mark_set==4) Td-=setting_amount[mark_setting_amount];
+          else if(mark_set==5) MKp-=setting_amount[mark_setting_amount];
+          else if(mark_set==6) MTi-=setting_amount[mark_setting_amount];
           else if(mark_set==7){
             mark_setting_amount--;
-            if(mark_setting_amount==-1)mark_setting_amount=3;
+            if(mark_setting_amount==-1)mark_setting_amount=4;
           }
         }
       }
       mark_loop++;
       if(mark_loop==10000)mark_loop=-1;
+    }
+    else if(mark_afterset){
+      // PID算法初始化
+      PID_init();
+      mark_afterset=false;
     }
     
     // 寻线到Lx Rx，过程包括了调用摄像头获取图像
@@ -227,9 +236,10 @@ int main(){
     // 调节舵机
     //64车中值725
     //185车中值710
-    S_PWM+=(int)PID_Steer_computing(GetDir_err());
-    if(S_PWM>S_center+130)S_PWM=S_center+130;
-    if(S_PWM<S_center-130)S_PWM=S_center-130;
+    S_PWM=725+(int)PID_Steer_computing(GetDir_err());
+//    S_PWM+=(int)PID_Steer_computing(GetDir_err());
+    if(S_PWM>S_center+140)S_PWM=S_center+140;
+    if(S_PWM<S_center-140)S_PWM=S_center-140;
     // 车道模式开关2 控制舵机开关
     if(!PBin(22)&&PBin(23))FTM_PWM_ChangeDuty(HW_FTM2,HW_FTM_CH0,S_PWM);
     // 车道模式开关3 控制OLED屏开关 /调速模式下OLED屏常开
@@ -298,18 +308,28 @@ int GetDir_err(){
   //  int imageUB=15;
   //  int imageLB=40;
   for(int i=imageUB;i<=imageLB;i++){
-    if(0<Cx[i]<152){
-      if(i<=30)
-        err_sum+=1*(Cx[i]-76);
-      else
-        err_sum+=1.5*(Cx[i]-76);
+    if(Cx[i]!=76){// 十字路口区分
+      err_sum+=(Cx[i]-76)*260/(210+i);//图像矫正
     }else
       k++;
   }
   if(k==(imageLB-imageUB+1)) err_out=0;
   else err_out=err_sum/(imageLB-imageUB+1-k);
-  cDirErr=err_out+2;
-  //  cDirErr=err_out;
+  
+//  if(err_sum<=10){
+//    imageUB=0;
+//    imageLB=10;
+//    for(int i=imageUB;i<=imageLB;i++){
+//      if(78<Cx[i]||Cx[i]<74){
+//        err_sum+=(Cx[i]-76)*260/(210+i);//图像矫正
+//      }else
+//        k++;
+//    }
+//    if(k==(imageLB-imageUB+1)) err_out=0;
+//    else err_out=err_sum/(imageLB-imageUB+1-k);
+//  }
+//  cDirErr=err_out+5;
+    cDirErr=err_out;
   // 图像处理有一点误差
   return cDirErr;
 }
@@ -355,26 +375,17 @@ void PID_init(){
   pid_m.pidKd=MKp * MTd / T; 
 }  
 
-// 舵机pid算法_pd增量式/自发明式
+// 舵机pid算法_pd自发明式/增量式
 float PID_Steer_computing(float err){
-  //  pid_s.err=err; 
-  //  
-  //  float increment
-  //    =pid_s.Kp*(pid_s.err-pid_s.err_l)+pid_s.Kd*(pid_s.err-2*pid_s.err_l+pid_s.err_ll);
-  ////  float increment
-  ////    =pid_s.Kp*pid_s.err-pid_s.Kd*pid_s.err_l;
-  //  
-  //  pid_s.err_ll=pid_s.err_l;
-  //  pid_s.err_l=pid_s.err;
-  //  
-  //  return increment;
-  
   float increment=0;
   pid_s.err = err;// 差值运算 
+  if(AbsoluteValue((int)(pid_s.err-pid_s.err_l)) > EEmax )// 除骤变 
+    increment = 0;
   if(AbsoluteValue((int)pid_s.err) < Emin )// 误差的阀值(死区控制?) 
     increment = 0;
   else{
-    increment = pid_s.pidKp*(pid_s.err-pid_s.err_l) + pid_s.pidKd*(pid_s.err-2*pid_s.err_l+pid_s.err_ll);
+    increment=Kp*pid_s.err-Td*pid_s.err_l;
+//    increment = pid_s.pidKp*(pid_s.err-pid_s.err_l) + pid_s.pidKd*(pid_s.err-2*pid_s.err_l+pid_s.err_ll);
     pid_s.err_ll = pid_s.err_l;
     pid_s.err_l = pid_s.err;
   }
@@ -489,13 +500,13 @@ void PTB11_EXTI_ISR(){
     else{
       if(mark_set==1) StraightSpeed+=setting_amount[mark_setting_amount];
       else if(mark_set==2) CurveSpeed+=setting_amount[mark_setting_amount];
-      else if(mark_set==3) pid_s.pidKp+=setting_amount[mark_setting_amount];
-      else if(mark_set==4) pid_s.pidKd+=setting_amount[mark_setting_amount];
-      else if(mark_set==5) pid_m.pidKp+=setting_amount[mark_setting_amount];
-      else if(mark_set==6) pid_m.pidKi+=setting_amount[mark_setting_amount];
+      else if(mark_set==3) Kp+=setting_amount[mark_setting_amount];
+      else if(mark_set==4) Td+=setting_amount[mark_setting_amount];
+      else if(mark_set==5) MKp+=setting_amount[mark_setting_amount];
+      else if(mark_set==6) MTi+=setting_amount[mark_setting_amount];
       else if(mark_set==7){
         mark_setting_amount++;
-        if(mark_setting_amount==4)mark_setting_amount=0;
+        if(mark_setting_amount==5)mark_setting_amount=0;
       }
     }
   }
@@ -531,25 +542,25 @@ void dispcondition(){
   // 舵机部分
   OLED_ShowString_1206(0,13,"s_Kp=",1);
   if(mark_set==3)
-    OLED_ShowNum_1206(30,13,pid_s.pidKp+(float)10,0);
+    OLED_ShowNum_1206(30,13,Kp+(float)10,0);
   else
-    OLED_ShowNum_1206(30,13,pid_s.pidKp+(float)10,1);
-  OLED_ShowString_1206(0,26,"s_Kd=",1);
+    OLED_ShowNum_1206(30,13,Kp+(float)10,1);
+  OLED_ShowString_1206(0,26,"s_Td=",1);
   if(mark_set==4)
-    OLED_ShowNum_1206(30,26,pid_s.pidKd+(float)10,0);
+    OLED_ShowNum_1206(30,26,Td+(float)10,0);
   else
-    OLED_ShowNum_1206(30,26,pid_s.pidKd+(float)10,1);
+    OLED_ShowNum_1206(30,26,Td+(float)10,1);
   // 电机部分
   OLED_ShowString_1206(64,13,"m_Kp=",1);
   if(mark_set==5)
-    OLED_ShowNum_1206(94,13,pid_m.pidKp+(float)10,0);
+    OLED_ShowNum_1206(94,13,MKp+(float)10,0);
   else
-    OLED_ShowNum_1206(94,13,pid_m.pidKp+(float)10,1);
-  OLED_ShowString_1206(64,26,"m_Ki=",1);
+    OLED_ShowNum_1206(94,13,MKp+(float)10,1);
+  OLED_ShowString_1206(64,26,"m_Ti=",1);
   if(mark_set==6)
-    OLED_ShowNum_1206(94,26,pid_m.pidKi+(float)10,0);
+    OLED_ShowNum_1206(94,26,MTi+(float)10,0);
   else
-    OLED_ShowNum_1206(94,26,pid_m.pidKi+(float)10,1);
+    OLED_ShowNum_1206(94,26,MTi+(float)10,1);
   
   // 调整幅度
   OLED_ShowString_1206(0,45,"set_a=",1);

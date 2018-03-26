@@ -28,7 +28,7 @@ int AbsoluteValue(int);
 // pid参数
 float T=    0.01;     // 采样周期
 // 舵机部分
-float Kp=   6.68;        // PID调节的比例常数
+float Kp=   6.65;        // PID调节的比例常数
 float Ti=   1;//不用// PID调节的积分常数
 float Td=   0.01;     // PID调节的微分时间常数
 //float Kp=   7.5;        // PID调节的比例常数
@@ -68,12 +68,12 @@ bool comingCurveRoad=false;
 int comingTerminal=0;
 
 // 调参模式参数设置
-int mark_set=4;
+int mark_set=1;
 //1-直道车速，2-弯道车速
 //3-S_Kp，4-S_Kd
 //5-M_Kp，6-M_Ki
 //7-mark_setting_amount
-int mark_setting_amount=0;
+int mark_setting_amount=5;
 float setting_amount[6]={0.01,0.05,0.10,0.5,1,5.0};
 
 //灰度值
@@ -86,11 +86,11 @@ int imageUB=10;
 int imageLB=49;
 
 // 车况参数
-int StraightSpeed=170;
+int StraightSpeed=160;
 int CurveSpeed=100;
 int MotorFrequency=0;
 int initFrequencyLevel=1500;
-int MAXFrequency=4500;
+int MAXFrequency=2500;
 int cPulse=0;
 int cSpeed=0;//cm/s
 int cPreDirErr=0;

@@ -1,7 +1,7 @@
 # SmartCar_inSEU
 ### 简介
     "Freescale" Undergraduates Smartcar Competition in SEU
-    Keep update until 18.03.25
+    Keep updating until 18.03.25
     东南大学校内智能车竞赛
 ### 环境
     开发环境：IAR

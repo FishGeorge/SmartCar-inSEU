@@ -1,3 +1,5 @@
+
+
 # SmartCar_inSEU
 ### 简介
     "Freescale" Undergraduates Smartcar Competition in SEU
@@ -7,7 +9,7 @@
     开发环境：IAR
     函数库由校队提供
     硬件清单：SCM K60
-             Camara OV7620
+             Camera OV7620
              Steer SD-5
              OLED 128x64
 ### 时间安排
